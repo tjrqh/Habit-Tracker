@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// User Model
+// ============================================
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  habits   Habit[]
+  sessions Session[]
+
+  @@index([email])
+}
+
+// ============================================
+// Habit Model
+// ============================================
+model Habit {
+  id            String   @id @default(cuid())
+  userId        String
+  title         String
+  targetTomato  Int
+  description   String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+// ============================================
+// Session Model (Pomodoro Session)
+// ============================================
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  habitId   String
+  status    String   @default("IDLE")
+  startTime DateTime?
+  endTime   DateTime?
+  duration  Int      @default(1500)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habit Habit  @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([habitId])
+  @@index([status])
+  @@index([createdAt])
+}

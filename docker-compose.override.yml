@@ -1,0 +1,17 @@
+version: '3.8'
+
+# Override configuration for local development
+# This file is automatically loaded by Docker Compose after docker-compose.yml
+
+services:
+  app:
+    # Use development image with hot reload
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    environment:
+      NODE_ENV: development
+    command: npm run dev
+    stdin_open: true
+    tty: true
