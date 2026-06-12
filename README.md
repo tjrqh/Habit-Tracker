@@ -165,6 +165,7 @@ npm run docker:down
 
 ### 사용자 API
 - `POST /api/users/register`: 신규 이메일 가입
+- `POST /api/users/login`: 이메일/비밀번호 기반 로그인
 - `GET /api/users`: 전체 사용자 프로필 목록 조회
 - `GET /api/users/:id`: 특정 사용자 상세 정보 조회
 - `DELETE /api/users/:id`: 사용자 삭제

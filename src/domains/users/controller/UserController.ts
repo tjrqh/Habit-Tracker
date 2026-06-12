@@ -19,6 +19,19 @@ export class UserController {
     }
   }
 
+  async login(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, password } = req.body;
+
+      const loginDto = new CreateUserDto(email, password);
+      const user = await this.userService.login(loginDto);
+
+      res.json(ResponseHelper.success(user, 'User logged in successfully'));
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getUserById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;

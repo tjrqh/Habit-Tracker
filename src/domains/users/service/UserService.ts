@@ -33,6 +33,27 @@ export class UserService {
     return UserResponseDto.fromEntity(user);
   }
 
+  async login(loginDto: CreateUserDto): Promise<UserResponseDto> {
+    Validators.validateEmail(loginDto.email);
+    Validators.validatePassword(loginDto.password);
+
+    const user = await this.userRepository.findByEmail(loginDto.email);
+    if (!user) {
+      throw new ValidationException('Invalid email or password', {
+        email: ['User not found'],
+      });
+    }
+
+    const isPasswordValid = await bcryptjs.compare(loginDto.password, user.password);
+    if (!isPasswordValid) {
+      throw new ValidationException('Invalid email or password', {
+        password: ['Incorrect password'],
+      });
+    }
+
+    return UserResponseDto.fromEntity(user);
+  }
+
   async getUserById(id: string): Promise<UserResponseDto> {
     const user = await this.userRepository.findById(id);
     return UserResponseDto.fromEntity(user);

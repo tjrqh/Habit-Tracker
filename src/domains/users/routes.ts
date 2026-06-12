@@ -11,6 +11,12 @@ const userController = new UserController();
 router.post('/register', (req, res, next) => userController.register(req, res, next));
 
 /**
+ * POST /api/users/login
+ * Login a user
+ */
+router.post('/login', (req, res, next) => userController.login(req, res, next));
+
+/**
  * GET /api/users
  * Get all users
  */

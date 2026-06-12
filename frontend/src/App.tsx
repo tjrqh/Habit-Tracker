@@ -1,29 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
-import {
-  Hourglass,
-  Clock,
-  Trash2,
-  Sparkles,
-  User as UserIcon,
-  LogOut,
-  Target,
-  PlusCircle,
-  CheckSquare,
-  Timer,
-  Pause,
-  Play
-} from 'lucide-react';
 import type { User, Habit, Session, HabitConfig } from './types';
 import { AuthCard } from './components/AuthCard';
 import { TimerModal } from './components/TimerModal';
+import { Header } from './components/Header';
+import { StatsPanel } from './components/StatsPanel';
+import { HabitList } from './components/HabitList';
+import { CreateHabitForm } from './components/CreateHabitForm';
+import { TimelineLogs } from './components/TimelineLogs';
 import { playSynthBeep, playSuccessSound, playFailSound } from './utils/audio';
 import { burstParticles } from './utils/particles';
 
 export default function App() {
   // --- Authentication State ---
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [existingUsers, setExistingUsers] = useState<User[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [loginEmail, setLoginEmail] = useState<string>('');
+  const [loginPassword, setLoginPassword] = useState<string>('');
   const [authTab, setAuthTab] = useState<'login' | 'register'>('login');
   const [regEmail, setRegEmail] = useState<string>('');
   const [regPassword, setRegPassword] = useState<string>('');
@@ -61,8 +52,6 @@ export default function App() {
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser) as User;
       setCurrentUser(parsedUser);
-    } else {
-      fetchExistingUsers();
     }
   }, []);
 
@@ -137,14 +126,7 @@ export default function App() {
     return data;
   };
 
-  const fetchExistingUsers = async () => {
-    try {
-      const res = await apiCall('/api/users');
-      setExistingUsers(res.data || []);
-    } catch (err) {
-      console.error('Failed to fetch users:', err);
-    }
-  };
+
 
   const loadDashboardData = async () => {
     if (!currentUser) return;
@@ -195,16 +177,23 @@ export default function App() {
   };
 
   // --- Auth Actions ---
-  const handleSelectUser = () => {
-    if (!selectedUserId) {
-      setAuthError('사용자 프로필을 선택해주세요.');
+  const handleLoginUser = async () => {
+    if (!loginEmail || !loginPassword) {
+      setAuthError('이메일과 비밀번호를 입력해주세요.');
       return;
     }
-    const user = existingUsers.find((u) => u.id === selectedUserId);
-    if (user) {
-      localStorage.setItem('focus_habit_user', JSON.stringify(user));
-      setCurrentUser(user);
-      setAuthError(null);
+    try {
+      const res = await apiCall('/api/users/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      });
+      if (res.data) {
+        localStorage.setItem('focus_habit_user', JSON.stringify(res.data));
+        setCurrentUser(res.data);
+        setAuthError(null);
+      }
+    } catch (err: any) {
+      setAuthError(err.message || '로그인 실패');
     }
   };
 
@@ -569,17 +558,17 @@ export default function App() {
       <AuthCard
         authTab={authTab}
         setAuthTab={setAuthTab}
-        selectedUserId={selectedUserId}
-        setSelectedUserId={setSelectedUserId}
-        existingUsers={existingUsers}
+        loginEmail={loginEmail}
+        setLoginEmail={setLoginEmail}
+        loginPassword={loginPassword}
+        setLoginPassword={setLoginPassword}
         regEmail={regEmail}
         setRegEmail={setRegEmail}
         regPassword={regPassword}
         setRegPassword={setRegPassword}
         authError={authError}
-        handleSelectUser={handleSelectUser}
+        handleLoginUser={handleLoginUser}
         handleRegisterUser={handleRegisterUser}
-        fetchExistingUsers={fetchExistingUsers}
       />
     );
   }
@@ -591,320 +580,47 @@ export default function App() {
       <div className="bg-glow bg-glow-2"></div>
 
       {/* Main Header */}
-      <header className="main-header glass-header">
-        <div className="logo">
-          <span className="logo-emoji">🍅</span>
-          <span className="logo-text">FocusHabit</span>
-        </div>
-        <div className="header-right">
-          <div className="user-profile">
-            <UserIcon size={16} />
-            <span id="current-user-email">{currentUser.email}</span>
-          </div>
-          <button className="btn btn-secondary btn-icon" onClick={handleLogout} title="로그아웃">
-            <LogOut size={16} />
-            <span>로그아웃</span>
-          </button>
-        </div>
-      </header>
+      <Header email={currentUser.email} onLogout={handleLogout} />
 
       {/* Dashboard Main Content */}
-      <main className="main-content">
-        {/* Statistics Cards */}
-        <section className="stats-section grid grid-cols-4 gap-4">
-          <div className="glass-card stat-card">
-            <div className="stat-icon purple-glow">
-              <CheckSquare size={20} />
-            </div>
-            <div className="stat-content">
-              <span className="stat-label">활성 습관</span>
-              <span className="stat-value" id="active-habits-count">{activeHabitsCount}개</span>
-            </div>
-          </div>
+      <main className="dashboard-layout">
+        {/* Left Sidebar: Stats & Timeline */}
+        <aside className="sidebar-panel">
+          <StatsPanel
+            activeHabitsCount={activeHabitsCount}
+            todayCompletedCount={todayCompletedCount}
+            totalCompletedCount={totalCompletedCount}
+            successRate={successRate}
+          />
+          <TimelineLogs sessions={sessions} habits={habits} />
+        </aside>
 
-          <div className="glass-card stat-card">
-            <div className="stat-icon green-glow">
-              <Sparkles size={20} />
-            </div>
-            <div className="stat-content">
-              <span className="stat-label">오늘 완료한 포모도로</span>
-              <span className="stat-value" id="today-completed-count">{todayCompletedCount}개</span>
-            </div>
-          </div>
-
-          <div className="glass-card stat-card">
-            <div className="stat-icon orange-glow">
-              <Timer size={20} />
-            </div>
-            <div className="stat-content">
-              <span className="stat-label">누적 완료한 포모도로</span>
-              <span className="stat-value" id="total-completed-count">{totalCompletedCount}개</span>
-            </div>
-          </div>
-
-          <div className="glass-card stat-card">
-            <div className="stat-icon red-glow">
-              <Target size={20} />
-            </div>
-            <div className="stat-content">
-              <span className="stat-label">집중 성공률</span>
-              <span className="stat-value" id="success-rate-pct">{successRate}%</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Dashboard Habit Grid */}
-        <section className="habits-section mt-6 grid grid-cols-3 gap-6 align-start">
-          {/* Habits List Container */}
-          <div className="habits-list-card glass-card col-span-2">
-            <div className="card-header">
-              <div className="header-left">
-                <Hourglass size={18} />
-                <h3>나의 습관 목록</h3>
-              </div>
-              <button className="btn btn-primary btn-sm" onClick={() => setShowCreateForm(true)}>
-                <PlusCircle size={16} />
-                <span>새 습관 추가</span>
-              </button>
-            </div>
-
-            <div className="habits-list mt-4" id="habits-list-container">
-              {habits.length === 0 ? (
-                <div className="empty-state">
-                  <p>등록된 습관이 없습니다. 새 습관을 추가하여 집중을 시작해보세요!</p>
-                </div>
-              ) : (
-                habits.map((habit) => {
-                  const completed = habitTomatoesMap[habit.id] || 0;
-                  const target = habit.targetTomato;
-                  const isFinished = completed >= target;
-
-                  return (
-                    <div key={habit.id} className={`habit-item glass-card ${habit.isActive ? '' : 'inactive'}`}>
-                      <div className="habit-info">
-                        <div className="habit-title-row">
-                          <h4 className="habit-title">{habit.title}</h4>
-                          {!habit.isActive && <span className="status-badge inactive-badge">일시 정지</span>}
-                        </div>
-                        {habit.description && <p className="habit-desc subtitle">{habit.description}</p>}
-                        
-                        <div className="progress-container mt-3">
-                          <div className="progress-labels">
-                            <span className="progress-label">오늘 달성도</span>
-                            <span className="progress-value">
-                              {completed} / {target} 🍅
-                              {isFinished && <span className="text-green ml-2">목표 달성! ✨</span>}
-                            </span>
-                          </div>
-                          
-                          {/* Tomato completion icons visual grid */}
-                          <div className="tomato-grid mt-2">
-                            {(() => {
-                              const list = [];
-                              for (let i = 1; i <= target; i++) {
-                                list.push(
-                                  <span
-                                    key={i}
-                                    className={`tomato-dot ${i <= completed ? 'filled' : ''}`}
-                                    title={`${i}번째 뽀모도로`}
-                                  >
-                                    🍅
-                                  </span>
-                                );
-                              }
-                              return list;
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="habit-actions">
-                        {habit.isActive ? (
-                          <button
-                            className="btn btn-primary btn-sm flex-1"
-                            onClick={() => triggerTimerModal(habit.id)}
-                          >
-                            <Timer size={14} />
-                            <span>타이머 시작</span>
-                          </button>
-                        ) : (
-                          <button className="btn btn-secondary btn-sm flex-1" disabled>
-                            일시정지됨
-                          </button>
-                        )}
-
-                        <button
-                          className={`btn ${habit.isActive ? 'btn-secondary' : 'btn-primary'} btn-icon-only`}
-                          onClick={() => handleToggleHabitStatus(habit.id, habit.isActive)}
-                          title={habit.isActive ? '습관 일시정지' : '습관 활성화'}
-                        >
-                          {habit.isActive ? <Pause size={14} /> : <Play size={14} />}
-                        </button>
-
-                        <button
-                          className="btn btn-danger btn-icon-only"
-                          onClick={() => handleDeleteHabit(habit.id)}
-                          title="습관 삭제"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* Right side helper column for creations */}
-          <div className="right-panel">
-            {showCreateForm && (
-              <div className="glass-card new-habit-card animate-fade-in" id="new-habit-form-container">
-                <div className="card-header border-none">
-                  <h3>새로운 습관 생성</h3>
-                </div>
-                <form id="new-habit-form" className="mt-3" onSubmit={handleCreateHabit}>
-                  <div className="form-group">
-                    <label className="form-label">습관 명칭</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="예: 아침 독서하기, 알고리즘 풀이"
-                      required
-                      value={newHabitTitle}
-                      onChange={(e) => setNewHabitTitle(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="form-group mt-3">
-                    <label className="form-label">습관 상세 정보 (설명)</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="습관에 대한 간략한 정보를 기록해보세요"
-                      value={newHabitDesc}
-                      onChange={(e) => setNewHabitDesc(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="form-group mt-3">
-                    <label className="form-label">하루 목표 뽀모도로 개수</label>
-                    <div className="select-wrapper">
-                      <select
-                        className="form-input"
-                        value={newHabitTarget}
-                        onChange={(e) => setNewHabitTarget(parseInt(e.target.value))}
-                      >
-                        <option value="1">1개 (25분)</option>
-                        <option value="2">2개 (50분)</option>
-                        <option value="3">3개 (75분)</option>
-                        <option value="4">4개 (100분)</option>
-                        <option value="6">6개 (150분)</option>
-                        <option value="8">8개 (200분)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Standard Duration Setting */}
-                  <div className="form-group mt-3">
-                    <label className="form-label">기본 집중 시간 설정</label>
-                    <div className="select-wrapper">
-                      <select
-                        className="form-input"
-                        value={newHabitDuration}
-                        onChange={(e) => setNewHabitDuration(parseInt(e.target.value))}
-                      >
-                        <option value="5">5분</option>
-                        <option value="15">15분</option>
-                        <option value="25">25분</option>
-                        <option value="30">30분</option>
-                        <option value="45">45분</option>
-                        <option value="60">60분</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Auto Repeat Toggle Option */}
-                  <div className="form-group mt-3 flex justify-between items-center">
-                    <label className="form-label">완료 시 자동 반복 (무한 루프)</label>
-                    <label className="switch">
-                      <input
-                        type="checkbox"
-                        checked={newHabitRepeat}
-                        onChange={(e) => setNewHabitRepeat(e.target.checked)}
-                      />
-                      <span className="slider round"></span>
-                    </label>
-                  </div>
-
-                  <div className="form-actions mt-4 flex gap-2">
-                    <button type="submit" className="btn btn-primary flex-1">
-                      <span>생성하기</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => setShowCreateForm(false)}
-                    >
-                      <span>취소</span>
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
-            {/* History logs block */}
-            <div className="glass-card logs-card mt-6">
-              <div className="card-header border-none">
-                <Clock size={16} />
-                <h3>최근 집중 타임라인</h3>
-              </div>
-              <div className="logs-list mt-3" id="timeline-logs-container">
-                {sessions.length === 0 ? (
-                  <div className="empty-state py-4">
-                    <p className="subtitle">아직 측정된 기록이 없습니다.</p>
-                  </div>
-                ) : (
-                  sessions.slice(0, 5).map((session) => {
-                    const habit = habits.find((h) => h.id === session.habitId);
-                    const formattedDate = new Date(session.createdAt).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    });
-                    const durationMins = Math.round(session.duration / 60);
-
-                    let badgeClass = 'status-idle';
-                    let statusLabel = '대기';
-                    if (session.status === 'RUNNING') {
-                      badgeClass = 'status-running';
-                      statusLabel = '진행 중';
-                    } else if (session.status === 'COMPLETED') {
-                      badgeClass = 'status-completed';
-                      statusLabel = '완료';
-                    } else if (session.status === 'FAILED') {
-                      badgeClass = 'status-failed';
-                      statusLabel = '포기';
-                    }
-
-                    return (
-                      <div key={session.id} className="log-item">
-                        <div className="log-meta">
-                          <span className="log-time">{formattedDate}</span>
-                          <span className={`log-badge ${badgeClass}`}>{statusLabel}</span>
-                        </div>
-                        <div className="log-title">
-                          <strong>{habit?.title || '삭제된 습관'}</strong>
-                        </div>
-                        <div className="log-desc subtitle">
-                          {durationMins}분 집중 세션 {statusLabel === '완료' ? '성공 ✨' : statusLabel === '포기' ? '실패 ✕' : '진행'}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
+        {/* Main Panel: Habits & Creation */}
+        <section className="main-panel">
+          {showCreateForm && (
+            <CreateHabitForm
+              newHabitTitle={newHabitTitle}
+              setNewHabitTitle={setNewHabitTitle}
+              newHabitDesc={newHabitDesc}
+              setNewHabitDesc={setNewHabitDesc}
+              newHabitTarget={newHabitTarget}
+              setNewHabitTarget={setNewHabitTarget}
+              newHabitDuration={newHabitDuration}
+              setNewHabitDuration={setNewHabitDuration}
+              newHabitRepeat={newHabitRepeat}
+              setNewHabitRepeat={setNewHabitRepeat}
+              onSubmit={handleCreateHabit}
+              onCancel={() => setShowCreateForm(false)}
+            />
+          )}
+          <HabitList
+            habits={habits}
+            habitTomatoesMap={habitTomatoesMap}
+            onStartTimer={triggerTimerModal}
+            onToggleStatus={handleToggleHabitStatus}
+            onDelete={handleDeleteHabit}
+            onShowCreateForm={() => setShowCreateForm(true)}
+          />
         </section>
       </main>
 
