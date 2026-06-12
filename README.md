@@ -56,36 +56,61 @@ FocusHabit은 포모도로(Pomodoro) 기법을 결합한 통합 개인 습관 �
 
 ### 1. 시스템 아키텍처 (Architecture)
 
+현재 시스템은 프론트엔드와 백엔드가 분리된 모노레포 구조를 가지며, 백엔드는 도메인 주도 설계(DDD) 관점을 일부 차용하여 설계되었습니다.
+
 ```mermaid
-flowchart TD
-    subgraph Client [Frontend / Browser]
-        UI[React 18 SPA]
-        State[Component State / LocalStorage]
-        Vite[Vite Bundler]
+flowchart TB
+    subgraph Frontend ["Frontend (React SPA)"]
+        UI["UI Components\n(HabitList, TimerModal)"]
+        State["State Management\n(React Hooks)"]
+        Utils["Utils\n(Audio, Particles)"]
         
         UI <--> State
+        UI --> Utils
     end
 
-    subgraph Server [Backend / Express.js]
-        Router[API Routes]
-        Controller[Controllers]
-        Service[Business Logic Services]
-        Repo[Prisma Repository]
+    subgraph Backend ["Backend (Express.js)"]
+        Router["API Routes\n(Express Router)"]
         
-        Router --> Controller --> Service --> Repo
-    end
-
-    subgraph Database [Persistence Layer]
-        DB[(MySQL / SQLite)]
-        Prisma[Prisma ORM]
+        subgraph StandardLayer ["일반 도메인 (Users, Habits)"]
+            Ctrl1["Controllers"]
+            Svc1["Services"]
+        end
         
-        Prisma <--> DB
+        subgraph DDDLayer ["복잡 도메인 (Sessions)"]
+            Ctrl2["Controllers"]
+            Svc2["Services"]
+            Entity["Domain Entity\n(State Machine)"]
+        end
+        
+        Repo["Prisma Repository"]
+        
+        Router --> Ctrl1
+        Router --> Ctrl2
+        
+        Ctrl1 --> Svc1
+        Ctrl2 --> Svc2
+        
+        Svc1 --> Repo
+        Svc2 --> Entity
+        Entity --> Repo
     end
 
-    %% Connections
-    UI <-->|HTTP RESTful API| Router
-    Repo <-->|Prisma Client| Prisma
-    UI -.->|Static File Serving (Prod)| Server
+    subgraph Database ["Persistence Layer"]
+        PrismaORM["Prisma Client"]
+        DB[("Database\n(MySQL / SQLite)")]
+        
+        PrismaORM <--> DB
+    end
+
+    %% Cross-boundary connections
+    State <-->|REST API\n(JSON)| Router
+    Frontend -.->|Static Serving\n(Production)| Backend
+    Repo <-->|Query| PrismaORM
+
+    classDef default fill:#1E293B,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC;
+    classDef highlight fill:#0F172A,stroke:#818CF8,stroke-width:2px,color:#F8FAFC;
+    class Frontend,Backend,Database highlight;
 ```
 
 ### 2. 엔티티 관계도 (ERD)
