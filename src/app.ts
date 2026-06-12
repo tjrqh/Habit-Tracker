@@ -18,7 +18,7 @@ export function createApp(): Express {
   app.use('/api', routes);
 
   // Static files (Frontend SPA)
-  app.use(express.static(path.join(process.cwd(), 'public')));
+  app.use(express.static(path.join(process.cwd(), 'frontend', 'dist')));
 
   // 404 handler
   app.use((_req, res, next) => {
@@ -32,7 +32,7 @@ export function createApp(): Express {
       return;
     }
     // Otherwise serve index.html for SPA routing
-    res.sendFile(path.join(process.cwd(), 'public', 'index.html'), (err) => {
+    res.sendFile(path.join(process.cwd(), 'frontend', 'dist', 'index.html'), (err) => {
       if (err) {
         next();
       }
